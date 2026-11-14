@@ -38,6 +38,15 @@ cnn.fit(Xtr, ytr, validation_data=(Xv, yv), epochs=30, batch_size=64,
         class_weight=class_weight, verbose=2,
         callbacks=[callbacks.EarlyStopping(patience=5, restore_best_weights=True)])
 cnn.save("model.keras")
+# Find the best classification threshold using validation data
+val_prob = cnn.predict(Xv, verbose=0).ravel()
+
+best_t = max(
+    np.arange(0.1, 0.95, 0.05),
+    key=lambda t: f1_score(yv, val_prob > t)
+)
+
+print("Best threshold:", round(best_t, 2))
 
 # ---------- Baselines (flatten each window into one long row) ----------
 flat = lambda X: X.reshape(len(X), -1)
@@ -47,7 +56,7 @@ lr = LogisticRegression(max_iter=1000, class_weight="balanced").fit(flat(Xtr), y
 
 # ---------- Compare on the TEST set ----------
 preds = {
-    "1D-CNN": (cnn.predict(Xte, verbose=0).ravel() > 0.5).astype(int),
+    "1D-CNN": (cnn.predict(Xte, verbose=0).ravel() > best_t).astype(int),
     "Random Forest": rf.predict(flat(Xte)),
     "Logistic Regression": lr.predict(flat(Xte)),
 }
